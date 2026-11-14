@@ -1,0 +1,13 @@
+test_camera.cpp inclut la vraie caméra, NkRef/NkRefView.h (dépôt Rihen-Universe/Nkentseu, commit f2a8a57), et ne crée aucune fenêtre : un main console. Construit avec clang 23.1.4 (llvm-mingw), les en-têtes et les bibliothèques du kit Canvas du 22 octobre 2026, -IApplications/NkRef/src ; lancé sous Windows 11 : cinq lignes OK, code de sortie 0. Puis copie de NkRefView.h dans copie/NkRef/NkRefView.h, un signe changé, reconstruction avec -Icopie AVANT les autres chemins d'inclusion : une ligne ECHEC, code de sortie 1. Le fichier du dépôt n'a pas été touché.
+
+Le signe que j'ai changé :
+Dans la copie, NkRefView::ZoomAtPixel, ligne 62, le replacement du centre après le zoom :
+  avant : center.x = anchor.x - (pixel.x - viewport.x * 0.5f) / zoom;
+  après : center.x = anchor.x + (pixel.x - viewport.x * 0.5f) / zoom;
+Un seul caractère : le moins devient plus, sur l'axe x seulement.
+
+Le test qui est tombé :
+point_fixe. Il note le point du monde sous le pixel (100, 50) d'une fenêtre de 800 x 600, zoome par ZoomAtPixel, et relit le point sous le même pixel. Avec le signe faux, le centre est replacé du mauvais côté de l'ancre : le point sous le curseur glisse de 2 x (100 - 400) / zoom unités en x, soit des centaines d'unités, bien au-delà de la tolérance de 0,001. C'est exactement la règle d'or du canevas infini qui casse, et c'est le test qui la nomme qui tombe.
+
+Un test qui n'a rien vu :
+aller_retour. Il vérifie que WorldToPixel(PixelToWorld(p)) redonne p, sur une vue posée à la main (centre (12,5 ; -40), zoom 2), sans jamais appeler ZoomAtPixel : la ligne cassée n'est pas sur son chemin. Et même s'il passait après un zoom raté, il resterait vert : PixelToWorld et WorldToPixel sont exactement inverses l'une de l'autre pour N'IMPORTE QUEL centre, même faux. Un aller-retour ne vérifie que la cohérence de deux formules entre elles, pas que la vue est au bon endroit. bornes, grille et origine n'ont rien vu non plus : bornes ne regarde que zoom, que le signe ne touche pas ; grille ne dépend que de zoom ; origine se termine par Reset(), qui efface le centre faux.

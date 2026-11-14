@@ -1,0 +1,15 @@
+test_format.cpp inclut NkRef/NkRefFile.h (dépôt Rihen-Universe/Nkentseu, commit f2a8a57). La planche : deux images (-64 ; 32), échelle 0,5, rotation 90, opacité 0,75, miroir X ; (100 ; -20,5), échelle 2, rotation -30, miroir Y), chacune avec des octets source inventés (9 et 6 octets), un trait rouge de trois points, une vue déplacée (centre (12,5 ; -40), zoom 2), thème sombre, grille cachée. Écrire (NkRefSerialize), relire (NkRefDeserialize), reconstruire une planche avec ce qui est relu, réécrire, comparer octet par octet. Construit avec clang 23.1.4 (llvm-mingw) et le kit Canvas du 22 octobre 2026 ; lancé sous Windows 11. Le compte se vérifie à la main : 24 octets d'en-tête et de vue + 4 (nombre d'images) + 2 x 36 + 15 octets source + 4 (nombre de traits) + 36 pour le trait = 155.
+
+La ligne que j'ai changée :
+Dans la copie copie/NkRef/NkRefFile.h, NkRefSerialize, ligne 107 :
+  avant : PutF32(out, view.zoom);
+  après : PutF32(out, view.zoom * 2.0f);
+Reconstruction avec -Icopie placé avant -IApplications/NkRef/src ; le dépôt n'est pas touché.
+
+Ce que le test a vu :
+« octets : 155, relu : OUI, identiques : NON (second : 155 octets, premier ecart a l'octet 18) ». La première écriture met 2 x 2 = 4 dans le fichier ; la relecture donne une vue de zoom 4 ; la seconde écriture met 4 x 2 = 8. Les tailles sont les mêmes, mais le premier écart tombe à l'octet 18 : la vue commence à l'octet 8 (4 de magie, 4 de version), le zoom occupe les octets 16 à 19, et le flottant 4,0 (00 00 80 40) diffère de 8,0 (00 00 00 41) dès son troisième octet. Le test n'avait pas besoin de savoir que c'était le zoom : il a vu qu'un octet ne se conservait pas, et l'a situé.
+
+Ce que le test ne voit pas :
+1. Une erreur qui perd une valeur de façon stable. Exemple vérifié : dans une seconde copie, ligne 118 de NkRefSerialize, « PutF32(out, it.pos.x); » devient « PutF32(out, it.pos.y); ». La position x de chaque image est perdue : le fichier écrit y deux fois, la relecture met y dans x, la réécriture écrit encore y deux fois. Résultat sous Windows : « octets : 155, relu : OUI, identiques : OUI ». Le test passe alors que toutes les images ont changé de place. Une erreur symétrique (x et y échangés à l'écriture ET à la lecture) passerait de même.
+2. Ce que le format n'écrit pas : id, selected et sourcePath (chapitre 10, exo 2). Ils reviennent à leurs défauts, la seconde écriture ne les contient pas plus que la première : aucun octet ne peut tomber.
+3. L'accord entre l'écriture et la planche d'ORIGINE : le test compare la seconde écriture à la première, jamais la planche relue à la planche construite. Pour voir les cas 1 et 2, il faudrait ajouter une comparaison champ par champ entre board.items et les items relus, ou relire un fichier de référence écrit une fois et gardé (un « fichier doré »).

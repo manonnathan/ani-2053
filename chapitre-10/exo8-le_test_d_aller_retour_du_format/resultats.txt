@@ -1,0 +1,4 @@
+Format juste :
+octets : 155, relu : OUI, identiques : OUI
+Format casse :
+octets : 155, relu : OUI, identiques : NON (second : 155 octets, premier ecart a l'octet 18)
