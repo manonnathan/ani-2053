@@ -1,8 +1,0 @@
-La ligne refusée :
-couleurs-personnalisees
-
-Ma défense :
-Vous avez demandé de pouvoir composer vous-même les couleurs de l'outil, et l'écran des réglages vous l'annonce encore comme « à venir ». Je ne la ferai pas : il faudrait construire un sélecteur de couleurs complet et l'enregistrer avec chaque planche, soit plusieurs semaines, pour un réglage qu'on touche une fois puis qu'on oublie, alors que le même temps rendrait possible l'annulation de toutes les opérations, dont l'absence fait perdre du vrai travail aujourd'hui. Je préfère vous le dire maintenant plutôt que de laisser cette promesse vieillir à l'écran.
-
-Ce que je propose à la place :
-Derrière cette demande, je comprends un besoin précis : voir vos références sur un fond qui ne fausse pas leurs couleurs, et parfois sur un fond proche de celui du jeu. Je propose donc un troisième fond prêt à l'emploi, un gris neutre sans teinte, à côté du sombre et du clair, et un réglage simple de la luminosité de ce fond ; c'est une journée de travail. Je retire en même temps la mention « à venir » de l'écran des réglages, pour que l'outil ne promette plus ce qu'il ne fera pas. Si, après quelques semaines d'usage, ces trois fonds ne suffisent toujours pas, on en reparle avec l'exemple précis du fond qui vous manque.
