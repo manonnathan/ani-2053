@@ -1,0 +1,22 @@
+Dépôt Rihen-Universe/Nkentseu, commit 83b50fa (15/11/2026). Toutes les commandes et leurs sorties sont dans recherches.txt. Les miroirs, d'abord : GetFlipX est lu aujourd'hui par Kernel/Runtime/NKCanvas/src/NKCanvas/Renderer/Batch/NkBatchRenderer2D.cpp:623, qui échange les coordonnées de texture ; le commentaire juste au-dessus date la découverte au 2026-09-05.
+
+Membre : NkRefItem::id
+Écrit dans : Applications/NkRef/src/NkRef/NkRefBoard.h:67
+Lu par : personne
+Verdict : inutile
+Preuve : la seule « lecture » est NkRefBoard.h:73, « return it.id; », et les deux seuls appelants de NkRefBoard::AddItem (main.cpp:646 et main.cpp:688) jettent la valeur rendue ; le format .nkref ne l'écrit pas non plus (aucun .id dans NkRefFile.h). Aucun geste de l'artiste ne passe par lui : il coûte quatre octets par image et laisse croire au lecteur que les images ont une identité stable, alors que tout NkRef les désigne par leur index (c'est la dette des tableaux alignés, chapitre 10).
+
+Membre : grabCorner
+Écrit dans : Applications/NkRef/src/NkRef/main.cpp:1148
+Lu par : personne
+Verdict : inutile
+Preuve : à la prise d'un coin, la même boucle range aussi le coin opposé dans grabAnchorWorld (main.cpp:1149), et c'est lui, avec grabCenterWorld et grabScale, que lit la mise à l'échelle (main.cpp:1238 et 1249-1250) ; le numéro du coin n'est relu nulle part. L'échelle par un coin marche : l'artiste ne perd rien, la variable est un reste.
+
+Membre : NkTexture::mFilter
+Écrit dans : Kernel/Runtime/NKCanvas/src/NKCanvas/Renderer/Resources/NkTexture.cpp:208
+Lu par : personne (son seul accesseur, NkTexture::GetFilter, NkTexture.h:72, n'a aucun appelant dans tout le dépôt ; les lignes 31 et 46 ne font que le recopier dans une autre texture lors d'un déplacement)
+Verdict : défaut
+Preuve : SetFilter garde le filtre et ne le transmet au dorsal que si la texture existe déjà (NkTexture.cpp:209) ; la création, gTextureBackend.Create(w, h, pixels) (NkTexture.cpp:163), ne reçoit pas le filtre, donc un SetFilter(NK_NEAREST) posé avant LoadFromFile est perdu sans message. Pire, deux dorsaux disent compter sur cette lecture qui n'existe pas : le logiciel (« le sampler software peut consulter directement via NkTexture::GetFilter », NkSoftwareRenderer2D.cpp:62-63) et Vulkan (« on conserve mFilter cote NkTexture (utile en lecture) », NkVulkanRenderer2D.cpp:474, dont SetVulkanTextureFilter ignore la valeur). L'artiste qui demande des pixels nets pour du pixel art obtient une image lissée sous Vulkan et une image toujours au plus proche en logiciel : exactement l'histoire des miroirs, une fonction déclarée, appelable, et sans effet.
+
+Ce que la lecture seule n'aurait pas montré :
+Lus un par un, ces trois membres ont l'air vivants : id a un compteur, un « return » et une place dans la structure ; grabCorner a un commentaire et une affectation au bon endroit ; mFilter a un setter, un getter et deux commentaires de dorsaux qui disent s'en servir. Une lecture voit des intentions, et elle les croit. Seule une recherche du nom dans tout le dépôt montre l'absence : aucune ligne qui le lit, en dehors de son écriture, de son accesseur et des commentaires. Encore faut-il chercher le LECTEUR et pas l'écrivain — chercher « id = » ou « mFilter = » aurait trouvé du code et rassuré — et écarter à la main les lignes commentées, les AddItem homonymes d'autres modules, et les copies qui ne font que déplacer la valeur. C'est la même recherche qui, le 2026-09-05, a montré que GetFlipX n'avait aucun appelant.
