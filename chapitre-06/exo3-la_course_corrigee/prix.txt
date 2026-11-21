@@ -1,0 +1,15 @@
+Sans protection : 8000000 2.699
+
+Mutex : 8000000 781.310
+
+Atomique : 8000000 359.796
+
+Local : 8000000 1.809
+
+La moins chère :
+Local : juste ET aussi rapide que la version fausse.
+
+Pourquoi :
+Mutex : chaque incrément prend et rend un verrou (8 millions de prises) et les fils s'attendent les uns les autres : 430 fois le prix de la version locale. Atomique : une instruction indivisible par incrément, sans attente du système, mais la ligne de cache du compteur fait des allers-retours entre les 8 cœurs : 2,2 fois moins cher que le mutex, 200 fois plus cher que le local. Local : rien n'est partagé pendant le calcul ; on additionne les 8 totaux une fois les Join faits. La sûreté vient de la façon de partager, pas du nombre de verrous. Le verrou est pris autour de CHAQUE incrément, pas de toute la boucle. La version sans protection donne 8000000 parce qu'en Release la boucle est réduite à une addition (voir exo 2) : elle reste fausse.
+
+Temps médians de trois mesures, Release (mutex : 740.886 781.310 787.766 ; atomique : 364.684 359.796 352.590 ; local : 2.133 1.809 1.601).

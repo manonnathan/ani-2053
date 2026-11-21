@@ -1,0 +1,9 @@
+Image :
+photo JPEG 4032 x 3024 (1,27 Mo sur le disque, 36,6 Mo décodée en RGB), chargée en 471 à 513 ms dans un fil de la réserve.
+
+Get : 514.0 1
+
+IsReady : 17.7 29
+
+Ce qu'on voit :
+Version Get : le carré s'arrête net pendant une demi-seconde (une trame de 514 ms au lieu de 16), puis repart : la boucle attend dans Get, rien n'est dessiné pendant le chargement. Version IsReady : le carré ne marque aucun arrêt ; la trame la plus longue reste à 17,7 ms (une trame normale) et 29 trames ont été dessinées pendant le chargement. Le travail est le même, seule la façon de demander le résultat change.

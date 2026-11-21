@@ -1,0 +1,24 @@
+from Jenga import *
+from jengaconfig import *
+
+with project("MonEssai"):
+    consoleapp()
+    language("C++")
+    cppdialect("C++17")
+    location(".")
+    files(["src/**.cpp"])
+    includedirs([
+        "%{wks.location}/Kernel/Foundation/NKMath/src",
+        "%{wks.location}/Kernel/Foundation/NKContainers/src",
+        "%{wks.location}/Kernel/Foundation/NKMemory/src",
+        "%{wks.location}/Kernel/Foundation/NKCore/src",
+        "%{wks.location}/Kernel/Foundation/NKPlatform/src",
+    ])
+    defines(["NKENTSEU_MATH_STATIC_LIB", "NKENTSEU_CORE_STATIC_LIB", "NKENTSEU_PLATFORM_STATIC_LIB",
+             "NKENTSEU_MEMORY_STATIC_LIB", "NKENTSEU_CONTAINERS_STATIC_LIB"])
+    # Chaque bibliotheque nommee dans links() doit aussi etre dans dependson() :
+    # sinon Jenga passe « -lNKCore » a l editeur de liens, qui ne la trouve pas.
+    dependson(["NKMath", "NKContainers", "NKMemory", "NKCore", "NKPlatform"])
+    links(["NKMath", "NKContainers", "NKMemory", "NKCore", "NKPlatform"])
+    objdir("%{wks.location}/Build/Obj/%{cfg.buildcfg}-%{cfg.system}/%{prj.name}")
+    targetdir("%{wks.location}/Build/Bin/%{cfg.buildcfg}-%{cfg.system}/%{prj.name}")

@@ -1,0 +1,29 @@
+Publiques :
+24 méthodes publiques dans include/NKCanvas/Renderer/Targets/NkRenderTarget.h (classe NkRenderTarget), destructeur exclu.
+Règle de comptage : chaque surcharge compte à part, virtuelle ou non (les 4 Draw comptent 4, les deux GetRenderer const / non const comptent 2) ; le destructeur ne compte pas. Regroupées par nom, cela fait 19 noms.
+Les 24 : Clear (l. 55), Display (59), SetView (63), GetView (64), GetDefaultView (65), ResetView (69), IsViewCustom (74), SetViewport (80), GetViewport (81), SetResizePolicy (90), GetResizePolicy (95), GetDesignSize (99), GetSize (105), Draw(const NkDrawable&, states) (111), Draw(const NkVertexArray&, states) (116), Draw(const NkVertex*, count, primitive, states) (121), Draw(const NkIDrawable2D&) (129), MapPixelToCoords (133), MapCoordsToPixel (134), GetRenderer() (138), GetRenderer() const (139), GetRenderer2D() (143), GetRenderer2D() const (144), Capture (152).
+
+Utiles :
+6 sur 24, d'après les programmes réels du sprint (crochets.cpp, banc.cpp, composite.cpp) et la boucle de NkCanvasApp :
+- Clear et Display : appelées par la boucle de NkCanvasApp à chaque image (mTarget->Clear, mTarget->Display).
+- Draw(const NkDrawable&, states) : composite.cpp, target.Draw(mRacine).
+- Draw(const NkVertex*, count, primitive, states) : appelée par NkSprite::Draw, l'enfant du composite, pour envoyer ses quatre sommets (et par la croix d'appelants.cpp au sprint 7).
+- GetRenderer() : composite.cpp, mTexture.Create(*Target().GetRenderer(), ...).
+- Capture : appelée par la coquille quand on lance composite avec --capture=capture.png.
+(banc.cpp ne crée aucune fenêtre ; crochets.cpp ne dessine rien : ils n'en utilisent aucune directement.)
+
+Les autres :
+18 sur 24, et le besoin de chacune :
+- La caméra : SetView, GetView, GetDefaultView, ResetView, IsViewCustom — faire défiler ou zoomer le monde, puis revenir à l'interface fixe.
+- La région de rendu : SetViewport, GetViewport — écran partagé, mini-carte.
+- Le redimensionnement : SetResizePolicy, GetResizePolicy, GetDesignSize — garder une résolution de référence (bandes, rognage, échelle entière).
+- GetSize — connaître la taille en pixels de la cible.
+- Draw(const NkVertexArray&) — un tableau de sommets tenu par l'application.
+- Draw(const NkIDrawable2D&) — l'ancienne interface de dessin. PROVISOIRE d'après son propre commentaire : « Sera retire quand NkSprite/NkText auront migre vers NkDrawable (etape A.8) » (l. 127-128). Cette migration a eu lieu le 2026-09-05 (en-tête de NkSprite.h) : la méthode a survécu à sa raison d'être.
+- MapPixelToCoords, MapCoordsToPixel — convertir le clic de la souris en point du monde.
+- GetRenderer() const, GetRenderer2D(), GetRenderer2D() const — l'accès au renderer bas niveau ou à sa façade, pour l'interopérabilité ; GetRenderer2D est commentée « avance / interop backends ».
+Signalée comme provisoire elle aussi : Capture, « Defaut : non supporte (false) ; surcharge par cible/backend », que NkRenderWindow.h dit réservée à DX11 (« autres a venir »). Et le commentaire de tête de la classe annonce NkRenderTexture « livre en stub pour l'instant ».
+
+Le rapport :
+6 utiles pour 24 publiques : 1 sur 4 (25 %). Par nom : 5 noms sur 19 (Clear, Display, Draw, GetRenderer, Capture).
+La façade tient encore sa promesse pour le cas courant : un programme de jeu simple ne touche que Clear, Draw et Display, et deux d'entre elles sont même appelées pour lui par la coquille. Mais elle a grossi : 3 méthodes promises, 24 exposées, dont une explicitement provisoire et déjà en retard sur sa date, et quatre qui rendent l'objet caché lui-même (GetRenderer, GetRenderer2D, const et non const) — c'est-à-dire la porte de sortie de la façade. La caméra (5) et le redimensionnement (3) sont de vrais besoins de jeu et se défendent ; l'accès au renderer et la compatibilité NkIDrawable2D sont les signes d'une façade qui expose ce qu'elle devait simplifier. Verdict : promesse tenue pour l'usage courant, mais au prix d'une surface quatre fois plus grande que ce que les programmes du sprint utilisent.

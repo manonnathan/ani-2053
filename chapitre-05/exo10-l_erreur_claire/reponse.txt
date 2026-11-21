@@ -1,0 +1,8 @@
+Ce que le refus m'apprend :
+Que le lecteur ne sait pas exploiter ce fichier : Open rend false, proprement, sans planter, pour la copie coupée comme pour le faux .mp4.
+
+Ce qu'il ne m'apprend pas :
+Pourquoi. Open ne rend que vrai ou faux : il ne dit pas si le conteneur est inconnu, si une piste manque, si le codec n'est pas pris en charge ou si le fichier est tronqué.
+
+Comment j'ai trouve la cause :
+Par la sonde (NkMediaProbe::ProbeFile). film.mp4 : MP4, 1 piste vidéo h264 640 x 360, et le lecteur l'ouvre (conteneur mov, codec h264, 240 images), malgré l'en-tête NkVideoReader.h qui annonce le H264 « à venir » : le commentaire retarde sur le code. film-coupe.mp4 : la sonde reconnaît encore MP4 (les octets « ftyp » du début sont là) mais trouve 0 piste : la table des pistes (boîte « moov ») est rangée en FIN de fichier par l'encodeur, et la coupure à la moitié l'a emportée. texte.mp4 : la sonde échoue dès les premiers octets, aucun conteneur reconnu : l'extension ment.

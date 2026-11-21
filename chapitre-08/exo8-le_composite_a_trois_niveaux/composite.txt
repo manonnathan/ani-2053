@@ -1,0 +1,23 @@
+La hiérarchie :
+composite.cpp, kit Canvas du 22 octobre 2026. Trois niveaux, chacun composant l'état reçu par local.transform *= GetTransform() :
+- niveau 1, mRacine (classe Noeud : NkTransformable + NkDrawable) : position (200, 150), sans rotation ;
+- niveau 2, mMilieu (Noeud), enfant de mRacine : position (100, 0), rotation 90 degrés (math::NkAngle(90.f)) ;
+- niveau 3, un NkSprite, enfant de mMilieu : position (50, 0), texture unie jaune 32 x 32 (NkTexture::Create dans OnInit, puis SetTexture), origine (0, 0).
+À côté du sprite, dans mMilieu, deux sondes placées comme lui en (50, 0) : la sonde composée (elle compose l'état reçu comme le sprite) et la sonde qui jette l'état reçu. Les enfants sont tenus par pointeur.
+
+Attendu :
+Calcul fait avant la mesure, dans le repère de chaque parent ; NkTransformable compose T = Translate(position) * Rotate(angle) * ..., et la rotation 2D de NkTransform est (x, y) -> (x cos a - y sin a, x sin a + y cos a), avec y vers le bas.
+- origine du sprite dans son repère : (0, 0) ; dans le repère de mMilieu : + position du sprite = (50, 0) ;
+- rotation de 90 degrés de mMilieu : (50, 0) -> (50 x 0 - 0 x 1, 50 x 1 + 0 x 0) = (0, 50) ; puis + position de mMilieu (100, 0) = (100, 50) dans le repère de mRacine ;
+- + position de mRacine (200, 150) = (300, 200) à l'écran.
+Le carré de 32 x 32 tourné de 90 degrés autour de son origine couvre x de 268 à 300 et y de 200 à 232.
+
+Mesuré :
+Windows 11, exécutables lancés seuls, fichiers composite-Debug.txt et composite-Release.txt, relevés à l'image 12 :
+- Debug : sonde composée (300.00, 200.00) ; sonde qui jette l'état (50.00, 0.00).
+- Release : sonde composée (300.00, 200.00) ; sonde qui jette l'état (50.00, 0.00).
+Image : composite-Release.exe --capture=capture.png --capture-frame=10 (dorsal par défaut, DirectX 11) a bien écrit capture.png (640 x 400, rendu avec ce dossier). Les pixels jaunes (255, 200, 0) occupent x de 268 à 299 et y de 200 à 231 : 1024 pixels, le carré de 32 x 32 attendu, coin en (300, 200) moins un pixel de bord exclusif. Contre-épreuve avec --backend=software : x 268 à 300, y 200 à 232 (le rastériseur logiciel inclut le bord). Les sondes, l'image en DirectX 11 et l'image en logiciel donnent la même position.
+
+Le défaut :
+La sonde qui jette l'état reçu n'applique que son propre transform : son origine arrive en (50, 0), au lieu de (300, 200), en Debug comme en Release. C'est l'ancien défaut de NkSprite que raconte NkSprite.h (« Leur Draw(target, states) JETAIT l'etat recu ») : l'enfant ignore le déplacement de ses deux parents ET la rotation du parent du milieu ; dessiné, il serait collé près du coin haut-gauche de la fenêtre, droit.
+Comment le test l'aurait attrapé : il compare la position composée mesurée à la position calculée d'avance, (300, 200), pour un sprite placé à trois niveaux, avec des positions non nulles et une rotation au milieu. Le défaut donne (50, 0) : l'écart est de 250 et 200 pixels, impossible à manquer. Avec des parents à l'origine et sans rotation, le défaut aurait donné la même réponse que le bon code, et le test n'aurait rien vu : c'est pour cela que chaque niveau a une position non nulle, et celui du milieu une rotation. Un tel test, lancé sur chaque type dessinable (forme, sprite, texte), aurait vu le jour même que le sprite ne se comportait pas comme la forme, au lieu de laisser passer le défaut des mois.

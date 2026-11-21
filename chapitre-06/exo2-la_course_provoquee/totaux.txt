@@ -1,0 +1,19 @@
+Dix totaux :
+3618335
+3813267
+3687380
+2496958
+2491886
+2150908
+2644307
+7843962
+3524293
+3379395
+(total attendu : 8000000, Debug)
+
+Un seul fil : 1000000 (juste : personne d'autre ne touche au compteur)
+
+Release : 8000000, 8000000, 8000000
+
+Pourquoi :
+compteur += 1 n'est pas une opération : c'est une lecture de la mémoire, une addition dans un registre, puis une écriture. Si deux fils lisent la même valeur avant que l'un d'eux écrive, les deux écrivent valeur + 1 : un incrément est perdu. Le résultat dépend du moment où chaque fil est interrompu, d'où dix totaux différents, tous faux (de 2,15 à 7,84 millions sur 8). En Release, le compilateur, qui suppose qu'aucun autre fil ne touche la variable (une course est un comportement indéfini), transforme la boucle d'un million d'additions en une seule addition « compteur += 1000000 ». La fenêtre de course devient minuscule et le total paraît juste : c'est de la chance, pas une correction. Un total juste une fois ne prouve rien.

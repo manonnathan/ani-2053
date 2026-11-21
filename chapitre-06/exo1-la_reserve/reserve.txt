@@ -1,0 +1,15 @@
+Tâche :
+Additionner 1 000 entiers lus dans un tableau, dans une variable locale ; le résultat est rangé dans une case propre à la tâche et vérifié (contrôle 699386400 dans les deux versions). Deux cents tâches. Release.
+
+Réserve : 0.408 2.215 3.369
+
+Fils : 47.645 44.306 49.055
+
+Ouvriers :
+8 (GetNumWorkers : un par processeur logique).
+
+Tâche longue : 5.592 47.821
+(médianes ; 100 000 entiers par tâche ; réserve 5.803 5.592 5.534, fils 52.294 47.821 47.605)
+
+Pourquoi :
+Pour la tâche courte, le travail est négligeable : ce qu'on mesure, c'est le coût de création et de destruction de 200 fils du système, environ 0,23 ms chacun sous Windows, contre 200 mises en file dans une réserve dont les 8 ouvriers existent déjà : la réserve est environ 20 fois plus rapide. Avec la tâche 100 fois plus longue, le calcul devient visible côté réserve (5,6 ms) mais pas côté fils (47,8 ms) : la création des fils pèse encore presque tout, et l'écart se resserre (8,5 fois). Plus la tâche est longue, plus le coût de création est amorti. Première version de la tâche abandonnée : « somme += i » était remplacé en Release par une formule, et la tâche longue ne durait pas plus.

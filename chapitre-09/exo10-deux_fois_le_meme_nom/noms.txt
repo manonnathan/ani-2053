@@ -1,0 +1,2 @@
+nom : NkWorld, fichier : Kernel/Runtime/NKCollision/src/NKCollision/NkCollisionWorld.h, ligne : 41
+nom : NkWorld, fichier : Kernel/Runtime/NKECS/src/NKECS/World/NkWorld.h, ligne : 167

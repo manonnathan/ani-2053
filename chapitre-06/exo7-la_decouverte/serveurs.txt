@@ -1,0 +1,17 @@
+Liste :
+[client] 6 serveur(s) trouve(s)
+  192.168.1.192:60589  Salle A  (1/4 joueurs)
+  192.168.1.192:60590  Salle B  (1/4 joueurs)
+  192.168.1.192:60591  Salle A  (1/4 joueurs)
+  192.168.1.192:60592  Salle B  (1/4 joueurs)
+  192.168.1.192:60593  Salle A  (1/4 joueurs)
+  192.168.1.192:60594  Salle B  (1/4 joueurs)
+
+Apparitions :
+Deux serveurs lancés, chacun apparaît 3 fois en 6 s d'écoute : Salle A aux ports 60589, 60591, 60593 ; Salle B aux ports 60590, 60592, 60594. Même adresse IP, un port différent à chaque fois. Le client relancé trouve de nouveau 3 + 3 lignes, avec d'autres ports (60595 à 60600).
+
+Pourquoi :
+NkDiscovery::Broadcast crée un socket NEUF à chaque appel, lié à un port quelconque (NkLobby.cpp : socket.Create(NkAddress::Any(0), …)), puis le ferme : chaque diffusion part d'un port source différent, que le système attribue en suivant (d'où les ports consécutifs). NkDiscovery::Listen dédoublonne par adresse IP + port (NkLobby.cpp : existing.addr == server.addr). Un même serveur qui diffuse toutes les 2 s pendant 6 s d'écoute a donc trois « adresses » différentes, et il est compté trois fois. Pour un serveur unique, il faudrait dédoublonner par IP + nom, ou diffuser depuis un socket gardé ouvert.
+
+Machines :
+Une seule machine (Windows 11, DESKTOP-I2VSOC8, adresse locale 192.168.1.192) : les deux serveurs et le client sur le même poste. maxPlayers est renseigné (4) : à 0, Listen écarte l'annonce sans message.

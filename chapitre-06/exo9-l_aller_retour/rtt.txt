@@ -1,0 +1,14 @@
+Moyenne : 317.544
+
+Minimum : 249.575
+
+Maximum : 530.325
+
+Lissée : 288.135
+
+Moteur : 43.945
+
+Écart :
+Mes mesures sont environ 7 fois plus longues que l'estimation du moteur, et ce n'est pas le câble : tout se passe sur 127.0.0.1. Le moteur mesure son RTT avec ses propres paquets PING/PONG, traités directement dans son fil réseau (NkConnectionManager::NetThreadLoop, NkConnection.cpp), qui tourne par pas de 16 ms ; sous Windows, NkChrono::SleepMilliseconds dure plus que demandé sans BeginPreciseTiming (NkChrono.h le dit), d'où 44 ms. Mes messages, eux, passent par le canal fiable ordonné (défaut de SendTo) : NkReliableChannel horodate chaque message dès sa mise en file (NkReliableUDP.cpp : entry.sentAt = NkNetNowMs()), alors que l'envoi immédiat n'a lieu que si sentAt vaut 0. Le message ne part donc qu'au délai de retransmission, au moins 100 ms (GetRTO), dans chaque sens : d'où ~280-310 ms en régime établi. Les premières mesures (370 à 530 ms) montent puis redescendent : c'est l'estimateur du délai de retransmission qui s'adapte.
+
+Une seule machine (Windows 11, 127.0.0.1) : l'aller-retour ne traverse aucun câble, ces chiffres ne se comparent pas à un vrai réseau.

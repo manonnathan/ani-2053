@@ -1,0 +1,27 @@
+L'endroit :
+La même question — « que sait faire ce dorsal graphique ? » — reçoit sa réponse par un switch sur NkGraphicsApi, ou par une méthode dédiée, à au moins cinq endroits du kit Canvas du 22 octobre 2026 :
+- include/NKCanvas/Core/NkGraphicsApi.h:12 — switch (api) dans NkGraphicsApiName : le nom de chaque API.
+- include/NKCanvas/Core/NkGraphicsApi.h:35 — switch (api) dans NkGraphicsApiIsAvailable : la disponibilité de chaque API, recopiée par plateforme sous #if (Windows, macOS, iOS...).
+- include/NKCanvas/Core/NkContextDesc.h:119 — switch (backendApi) dans NkContextDesc::IsComputeEnabledForApi : le calcul activé ou non, par API. Et la même structure, l. 107-112, garde un champ par API (opengl, vulkan, dx11, dx12, metal, software).
+- include/NKCanvas/Factory/NkContextFactory.h:43 — static bool IsApiSupported(NkGraphicsApi api); pour le contexte.
+- include/NKCanvas/Renderer/Core/NkRenderer2DFactory.h:47 — static bool IsApiSupported(NkGraphicsApi api); pour le renderer 2D.
+Ce qui se répète : la liste des APIs et une décision par API. NkGraphicsApiIsAvailable, NkContextFactory::IsApiSupported et NkRenderer2DFactory::IsApiSupported répondent trois fois à « ce dorsal existe-t-il ici ? », et les deux fabriques choisissent chacune la classe concrète par API dans leur .cpp. C'est bien un deuxième cas, et même un cinquième : ajouter une API (WebGPU, par exemple) oblige à retrouver chacun de ces endroits, et le compilateur ne signale aucun oubli, puisque chaque switch a un default.
+
+Le motif :
+Une Stratégie par dorsal, rangée dans un registre — c'est-à-dire remplacer les switch par du polymorphisme. Un objet NkGraphicsBackendInfo par API porte tout ce que les switch dispersent : Name(), IsAvailable() (chacun sa règle de plateforme), SupportsCompute(const NkContextDesc&), CreateContext(window, desc), CreateRenderer2D(ctx). Chaque dorsal s'enregistre une fois, dans son propre dossier ; NkGraphicsApiName, IsAvailable et les deux IsApiSupported deviennent une recherche dans le registre ; les deux fabriques deviennent des appels à l'objet trouvé.
+Pourquoi celui-là et pas un autre : le problème n'est pas de créer sans connaître la classe (les fabriques le font déjà bien, cf. exo 3), ni de simplifier une interface (façade) : c'est un choix par type répété à plusieurs endroits. C'est le cas d'école du switch remplacé par un objet.
+
+Le coût :
+Fichiers à changer :
+- NkGraphicsApi.h (les deux fonctions deviennent des délégations) ;
+- NkContextDesc.h (IsComputeEnabledForApi) ;
+- NkContextFactory.h et son .cpp ; NkRenderer2DFactory.h et son .cpp ;
+- un nouvel en-tête NkGraphicsBackendRegistry.h ;
+- un fichier d'enregistrement par dorsal, six : DX11, DX12, OpenGL, Vulkan, Metal, logiciel (dans Backend/*/) ;
+- NkCanvasApp.cpp (ResoudreBackend lit l'ordre et la disponibilité), et sans doute NkRenderWindow.cpp.
+Soit environ 13 à 15 fichiers, dont 9 dans les en-têtes publics du kit : tout ce qui inclut NkGraphicsApi.h se recompile.
+Ce qui risque de casser :
+- L'ordre d'initialisation : un enregistrement par variable statique peut ne pas avoir eu lieu quand le premier appelant interroge le registre, et une bibliothèque statique peut même ne pas lier un fichier que personne ne référence — le dorsal disparaîtrait sans erreur.
+- Les règles par plateforme de NkGraphicsApiIsAvailable, aujourd'hui toutes visibles dans un seul switch, se retrouvent éclatées dans six fichiers.
+- NK_GFX_API_NONE et NK_GFX_API_AUTO, que les switch envoient aujourd'hui au default : il faut décider ce que rend le registre pour eux (NkCanvasApp.h prévient déjà que AUTO n'est résolu par aucune fabrique).
+- Les programmes qui appellent NkGraphicsApiName ou IsApiSupported directement doivent garder les mêmes réponses : il faut un banc qui compare l'ancien et le nouveau résultat pour chaque API, avant de retirer les switch.

@@ -1,0 +1,10 @@
+Pourquoi une seule texture :
+Toutes les lettres d'un texte se dessinent avec une seule texture liée, donc un seul envoi à la carte graphique et un seul changement d'état, au lieu d'un par caractère.
+
+Ce que change la taille :
+Le nombre de glyphes ne change pas (191 : ASCII et Latin-1 de Cousine), la texture si : 512 x 512 à 18 px, 1024 x 1024 à 48 px, soit 4 fois plus de mémoire (1 Mo puis 4 Mo en RGBA). Méthode pour « perdu » : part des pixels d'alpha nul, comptée par atlas.cpp ; à l'œil, sur atlas.png, les rangées de glyphes n'occupent que le haut de la texture (environ 140 lignes sur 512).
+
+A quoi sert la marge entre glyphes :
+Elle évite le saignement : avec le filtrage bilinéaire, un échantillon pris au bord d'une lettre lit aussi les pixels voisins. Sans marge, une lettre ramènerait un liseré de sa voisine.
+
+Note : SavePNG écrit les glyphes en blanc sur fond transparent, ce qui paraît vide dans une visionneuse ; atlas.png est la même image posée sur fond noir pour être regardée.

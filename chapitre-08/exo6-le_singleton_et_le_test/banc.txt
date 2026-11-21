@@ -1,0 +1,47 @@
+Tester la version directe :
+La version directe :
+    bool DoitSauterDirect(bool auSol) { return auSol && NkInput.IsKeyDown(NkKey::NK_SPACE); }
+Pour la tester, il faudrait contrôler ce que NkInput voit, cas par cas :
+- cas 1, au sol + espace enfoncée -> saute : il faut qu'une vraie barre d'espace soit enfoncée au moment exact de l'appel, donc une fenêtre ouverte, au premier plan, un système d'événements initialisé (NkSystem), un humain ou un injecteur de touches (SendInput) — et un test qui ne tourne plus sur une machine sans écran ni en intégration continue ;
+- cas 2, au sol + espace relâchée -> ne saute pas : il faut être sûr que personne n'appuie, ni ne garde une touche d'un test précédent ;
+- cas 3, en l'air + espace enfoncée -> ne saute pas : de nouveau une touche réelle ;
+- cas 4, en l'air + rien -> ne saute pas.
+La seule autre voie serait de remplacer le système d'événements par SetEventSystem, « réservé à NkSystem » (NkEventDispatcher.h) et global : on modifierait un objet que tout le programme partage, et deux tests en parallèle se marcheraient dessus.
+Ce que cela coûte : une fenêtre et un clavier pour deux cas sur quatre ; le test dépend de l'ordre et de la machine ; il ne peut pas rendre un verdict seul.
+
+La version testable :
+    bool DoitSauter(bool auSol, bool espaceEnfoncee) { return auSol && espaceEnfoncee; }
+    bool DoitSauterDansLeJeu(bool auSol) { return DoitSauter(auSol, NkInput.IsKeyDown(NkKey::NK_SPACE)); }
+Ce que j'ai changé : la règle (« au sol ET espace enfoncée ») ne bouge pas, mais elle ne lit plus le singleton : l'état de la touche lui arrive en paramètre. La lecture de NkInput est repoussée à la frontière, dans une fonction d'une ligne qui ne contient aucune décision. La règle devient une fonction pure, testable avec deux booléens.
+
+Le banc :
+banc.cpp, OnCommandLine (appelé avant toute fenêtre) : les quatre cas, d'abord sur la version testable, puis sur la version directe au même endroit ; le nombre d'échecs de la version testable est rendu comme code de sortie. Windows 11, kit Canvas du 22 octobre 2026, Debug puis Release, chaque exécutable lancé seul :
+Debug (banc-Debug.txt) :
+cas 1 testable : auSol=1 espace=1 attendu=1 obtenu=1 OK
+cas 2 testable : auSol=1 espace=0 attendu=0 obtenu=0 OK
+cas 3 testable : auSol=0 espace=1 attendu=0 obtenu=0 OK
+cas 4 testable : auSol=0 espace=0 attendu=0 obtenu=0 OK
+cas 1 directe  : auSol=1 espace=1 attendu=1 obtenu=0 ECHEC
+cas 2 directe  : auSol=1 espace=0 attendu=0 obtenu=0 OK
+cas 3 directe  : auSol=0 espace=1 attendu=0 obtenu=0 OK
+cas 4 directe  : auSol=0 espace=0 attendu=0 obtenu=0 OK
+NkInput.IsKeyDown(NK_SPACE) avant toute fenetre : 0
+echecs (version testable) : 0
+code de sortie : 0
+
+Release (banc-Release.txt) :
+cas 1 testable : auSol=1 espace=1 attendu=1 obtenu=1 OK
+cas 2 testable : auSol=1 espace=0 attendu=0 obtenu=0 OK
+cas 3 testable : auSol=0 espace=1 attendu=0 obtenu=0 OK
+cas 4 testable : auSol=0 espace=0 attendu=0 obtenu=0 OK
+cas 1 directe  : auSol=1 espace=1 attendu=1 obtenu=0 ECHEC
+cas 2 directe  : auSol=1 espace=0 attendu=0 obtenu=0 OK
+cas 3 directe  : auSol=0 espace=1 attendu=0 obtenu=0 OK
+cas 4 directe  : auSol=0 espace=0 attendu=0 obtenu=0 OK
+NkInput.IsKeyDown(NK_SPACE) avant toute fenetre : 0
+echecs (version testable) : 0
+code de sortie : 0
+Verdict : la version testable passe ses 4 cas en Debug et en Release (code de sortie 0, aucune fenêtre ouverte). La version directe échoue au cas 1.
+
+Sans fenêtre :
+La version directe a rendu false aux quatre cas, donc « ne saute pas » même quand le cas demande « espace enfoncée » : le cas 1 tombe, et les cas 2, 3, 4 ne passent que par hasard, parce que false est la bonne réponse pour eux. Pourquoi : dans OnCommandLine, aucune fenêtre n'existe, donc aucun message clavier n'a jamais été reçu ; NkInput.IsKeyDown(NK_SPACE) lit l'état du système d'événements (ou son état factice s'il n'est pas encore injecté) et rend 0 (ligne « NkInput.IsKeyDown(NK_SPACE) avant toute fenetre : 0 »). Le paramètre espace=1 du cas n'atteint jamais la fonction : elle ne le reçoit pas, elle le demande au singleton. C'est exactement ce qui la rend intestable — et, sur une machine où quelqu'un aurait gardé l'espace enfoncée pendant le lancement, le même banc aurait rendu un autre résultat.

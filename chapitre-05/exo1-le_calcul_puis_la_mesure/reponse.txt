@@ -1,0 +1,8 @@
+Ce que la taille du fichier ne dit pas :
+La mémoire décodée ne dépend que de largeur x hauteur x octets par pixel (journal : icône 32 x 32 BytesPP 4, capture 1280 x 800 BytesPP 3, dessin 1920 x 1080 BytesPP 4, photo1 4032 x 3024 BytesPP 3, photo2 2400 x 1600 BytesPP 1). photo1.jpg pèse 1,27 Mo sur le disque et occupe 37 Mo : 29 fois plus. dessin.png pèse 52 ko et occupe 8,3 Mo : 160 fois plus, parce qu'un aplat se compresse presque à rien. capture.png n'a pas d'alpha : BytesPP 3. photo2.jpg est en gris : BytesPP 1.
+
+L'ecart entre calcul et mesure :
+Mesure = mémoire de travail du processus (GetProcessMemoryInfo, ce que montre le gestionnaire des tâches) juste avant et juste après Load, l'image restant en vie. Elle ne tombe jamais pile : +12 288 octets (3 pages de 4 ko) pour la capture et le dessin, car le système alloue par pages entières ; +716 ko pour photo1, les tampons du décodeur JPEG gardés par l'allocateur ; +147 ko pour l'icône, car le premier chargement paie l'initialisation du décodeur. Deuxième série, même programme : 163 840, 3 088 384, 8 298 496, 36 614 144, 3 842 048 : l'écart change, le calcul jamais.
+
+Avant d'ouvrir cinquante photos :
+Calculer : 50 photos de 12 Mpx en RGB, c'est 50 x 36,6 Mo = 1,8 Go, quelle que soit la taille des fichiers. Il faut donc charger à la demande, libérer ce qui sort de l'écran, et garder des vignettes réduites pour la vue d'ensemble.

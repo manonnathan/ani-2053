@@ -1,0 +1,45 @@
+Kit Canvas du 22 octobre 2026, dossier include/. Chemins relatifs à include/.
+
+Stratégie :
+NKCanvas/Renderer/Targets/NkRenderWindow.h:183
+				memory::NkUniquePtr<NkIRenderer2D> mRenderer;
+La cible tient UNE stratégie de dessin par son interface, sans savoir laquelle. L'interface est NKCanvas/Renderer/Core/NkIRenderer2D.h:46 « class NkIRenderer2D { », et ses mises en œuvre interchangeables sont dans NKCanvas/Backend/ (NkDX11Renderer2D, NkDX12Renderer2D, NkOpenGLRenderer2D, NkVulkanRenderer2D, NkMetalRenderer2D, NkSoftwareRenderer2D), choisies à l'exécution (--backend=...).
+
+Fabrique :
+NKCanvas/Renderer/Core/NkRenderer2DFactory.h:36
+				static NkIRenderer2D *Create(NkIGraphicsContext *ctx);
+Crée le dorsal de dessin d'après le contexte graphique, sans que l'appelant nomme la classe concrète : l'en-tête ne cite aucun dorsal (le choix est dans le .cpp, compilé dans NKCanvas.lib).
+
+Façade :
+NKCanvas/Renderer/Core/NkRenderer2D.h:58
+		class NkRenderer2D {
+Son en-tête la nomme « Facade concrete user-facing » : Clear, DrawLine, DrawFilledRect, Draw(sprite) devant l'interface du dorsal. La cible de rendu en est une aussi : NKCanvas/Renderer/Targets/NkRenderTarget.h:55-59 (Clear, Display) et :111 (Draw) cachent contexte, fabrique, renderer et lot de sommets.
+
+Patron de méthode :
+NKCanvas/App/NkCanvasApp.h:262
+				virtual void OnRender(NkRenderWindow &target) {
+Une étape du squelette fixe de NkCanvasApp. Le squelette lui-même (OnUpdate, Clear, OnRender, Display) est dans NkCanvasApp::Execute, déclarée NkCanvasApp.h:371 mais dont le corps est dans la bibliothèque compilée : l'en-tête ne montre que les étapes à remplir (OnCommandLine, OnInit, OnUpdate, OnRender, OnShutdown...). Un second exemple dont le squelette est visible dans son commentaire : NKCanvas/Renderer/Batch/NkBatchRenderer2D.h:167, « virtual void SubmitBatches(...) = 0; », appelée par Flush() de la classe de base.
+
+Observateur :
+NKEvent/NkEventSystem.h:315
+			void AddEventCallback(Callback &&callback, NkWindowId windowId = NK_INVALID_WINDOW_ID) {
+On s'abonne à un type d'événement ; le système d'événements prévient chaque abonné sans les connaître (DispatchToCallbacks). Le côté « consommé » du motif est NkCanvasApp.h:270, « virtual bool OnEvent(const NkEvent &event) { » : true arrête la chaîne.
+
+Singleton :
+NKEvent/NkEventDispatcher.h:417
+	inline NkInputQuery NkInput;
+Un seul objet, atteignable de partout par son nom. Il ne garde pas d'état lui-même (deux pointeurs injectés, l. 399-400) : il relit celui du système d'événements.
+
+Adaptateur :
+NKCanvas/UI/NkGuiCanvasBackend.h:26
+		class NkGuiCanvasBackend {
+Traduit les listes de commandes de NKGui (NkGuiDrawList) en appels à NkIRenderer2D (SetClip, SetBlendMode, DrawVertices), pour que NKGui ignore NKCanvas et que NKCanvas ignore NKGui.
+
+Composite :
+NKCanvas/Renderer/Core/NkDrawable.h:51
+				virtual void Draw(NkRenderTarget &target, const NkRenderStates &states) const = 0;
+Un objet et un groupe d'objets se dessinent par la même méthode, et l'état reçu est composé à chaque niveau. ATTENTION, la ligne qui montre la composition n'est qu'en commentaire : NkDrawable.h:24, « //       local.transform *= GetTransform();   // applique notre transform ». Le corps réel de NkSprite::Draw est dans la bibliothèque, et le kit ne contient aucune classe « groupe » toute faite : le nœud qui contient des enfants, c'est à l'application de l'écrire (chapitre 8, exo 8).
+
+Commande :
+Absente du kit. Aucune classe ne représente une action par un objet qu'on garde pour la rejouer ou la défaire : pas de Execute/Undo, pas de pile d'annulation dans les en-têtes de NKCanvas, NKEvent ou NKGui.
+Ce qui s'en approche le plus : NKEvent/NkEventDispatcher.h:642, « struct NkActionCommand { ». Son nom dit « commande », mais c'est une liaison entre un nom d'action et une entrée (NkInputCode) : elle ne porte pas l'action, elle ne s'exécute ni ne s'annule. Plus proche encore par l'esprit : la file d'événements de NkEventSystem (Enqueue / PollEvent), où chaque événement est un objet gardé puis rejoué plus tard — mais on ne la défait pas. L'annulation, quand une application en a une (NkRef), est écrite chez l'application.

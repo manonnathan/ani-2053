@@ -1,0 +1,23 @@
+Le premier pont :
+include/NKCanvas/UI/NkGuiCanvasBackend.h:26, « class NkGuiCanvasBackend { » (585 lignes, en-tête seul : aucun .cpp).
+Ce qu'il reçoit : à Init (l. 38), un NkIRenderer2D* qu'il ne possède pas ; à chaque image, par Submit (l. 213), une nkgui::NkGuiDrawList — des sommets (vtx : position, uv, couleur 32 bits), des indices (idx), et des commandes (cmds : type, idxOffset, idxCount, texId, clipRect, blend) — plus la taille du tampon (fbW, fbH). Il ne connaît aucune fenêtre ni aucun widget de NKGui : seulement la liste.
+Ses méthodes publiques : Init (l. 38), UploadFontGray8 (l. 45, un atlas de police alpha 8 bits, étendu en RGBA blanc + alpha), UploadImageRGBA (l. 98, une image par texId), Submit (l. 213), et Releve (l. 208, statique, des relevés de temps activés par NK_PHASES — de l'instrumentation, pas de la traduction).
+Ce qu'il fait de chaque commande : il pose la découpe (mRenderer->SetClip, l. 295), traduit le mode de mélange NkGuiBlend en NkBlendMode (switch l. 305-323, SetBlendMode), retrouve la texture du texId parmi ses atlas et images, convertit les sommets NkGuiVertex en NkVertex2D, rebase les indices de la commande, et appelle mRenderer->DrawVertices (l. 455). Puis il retire la découpe (PopClip).
+
+Le second pont :
+Un « NkGuiImageBackend » qui dessine la même NkGuiDrawList dans une image en mémoire, puis l'écrit dans un fichier. Il ne touche pas à NKGui : il lit la même liste, par la même entrée. Il rastérise chaque triangle de chaque commande dans un tableau de pixels RGBA8, en respectant la découpe, la texture du texId et le mode de mélange, puis confie les pixels à NkImage pour les écrire en PNG. Il vivrait hors de NKGui (NKGui n'a pas le droit d'inclure NkImage, faute de NKStream dans ses dépendances), par exemple à côté du premier pont.
+
+Combien de méthodes :
+Cinq publiques, symétriques du premier pont : Init(largeur, hauteur) au lieu d'un renderer ; PoserTexture(texId, pixels, largeur, hauteur, canaux), qui remplace à la fois UploadFontGray8 et UploadImageRGBA (une texture à 1 canal est un alpha sur blanc) ; Effacer(couleur) ; Submit(const NkGuiDrawList&) qui rastérise ; Enregistrer(chemin), qui écrit le fichier. Plus deux privées : Triangle (fonctions d'arête, interpolation barycentrique) et Melanger (un cas par NkGuiBlend).
+
+Les données :
+Il suffit de ce que la liste porte déjà : les sommets (position, uv, couleur), les indices, et pour chaque commande idxOffset, idxCount, texId, clipRect, blend. S'y ajoutent les pixels des textures connues par texId (les mêmes octets que ceux donnés à UploadFontGray8 / UploadImageRGBA), et la taille de l'image de sortie. Aucune donnée de fenêtre, de widget ou de GPU n'est nécessaire : c'est la preuve que la liste de commandes est la bonne frontière.
+
+Dans le kit :
+Il existe presque : include/NKGui/Core/NkGuiDrawListRaster.h:62, « class NkGuiDrawListRaster { » (349 lignes), « le meme flux de commandes que le GPU, sans fenetre ni GPU ». Méthodes publiques : Init(w, h) (l. 66), Effacer(rgba) (l. 77), PoserTexture(id, px, w, h, canaux) (l. 91), Rasteriser(const NkGuiDrawList&) (l. 116, rend le nombre de textures inconnues), Largeur, Hauteur, Pixels (l. 151-153), Texture(id) (l. 163). Privées : Echantillon, Texel, Depaqueter, Melanger (l. 218, les six modes avec les facteurs du dorsal OpenGL), HautGauche, Triangle (l. 273).
+Ce qui diffère de ma description :
+- Il est DANS NKGui, et non à côté du premier pont : il ne parle à aucun renderer, il ne dépend que de NkGuiDrawList, donc il a sa place dans la couche de la liste.
+- Il ne sait pas écrire de fichier : pas d'Enregistrer. Il rend Pixels() ; c'est l'appelant (NkUIDesign, pour l'export PNG) qui confie les pixels à NkImage. C'est la même raison que dans ma description — NKGui ne peut pas inclure NkImage — mais résolue en laissant l'écriture à l'application.
+- Il ne copie pas les textures : il les RÉFÉRENCE, l'appelant les garde vivantes jusqu'à Rasteriser.
+- Il échantillonne en bilinéaire et applique la règle haut-gauche ; il ne fait pas d'anticrénelage.
+Le premier pont a donc tenu sa promesse : le second s'est écrit sans changer une ligne de NKGui, à partir de la seule liste de commandes.

@@ -1,0 +1,24 @@
+Dépôt Rihen-Universe/Nkentseu, commit f2a8a57 du 14/11/2026. Recherche des classes et structures définies (avec un corps « { ») plus d'une fois :
+  grep -rnE "^\s*(class|struct)\s+(NK[A-Z_]+_API\s+)?NkWorld\b[^;]*\{" Kernel Engine
+-> deux définitions, dans deux modules et deux espaces de noms différents : nkentseu::collision::NkWorld (NKCollision) et nkentseu::ecs::NkWorld (NKECS). Ce ne sont pas des copies par plateforme : je les ai ouvertes, elles n'ont ni les mêmes membres ni le même rôle. (Autres doublons écartés : NkWindowData et NkEventSystemData, recopiés par plateforme ; NkFont, exclu par l'énoncé.)
+
+Le premier mérite-t-il le nom :
+collision::NkWorld (NkCollisionWorld.h:41) est « le monde de collision » d'après son propre en-tête : il garde des corps (avec couche, masque, déclencheur, proxy de broadphase), calcule les paires en contact (broadphase puis narrowphase), répond aux requêtes (raycast, overlap) et émet des événements de contact par Step(). C'est un monde de corps et de contacts, pas « le » monde du jeu. Il mérite le nom de son fichier, NkCollisionWorld, plus que NkWorld : le mot seul promet tout le jeu, et il ne sait que des formes et des intersections. NKPhysics l'enveloppe d'ailleurs dans un NkPhysicsWorld.
+
+Le second mérite-t-il le nom :
+ecs::NkWorld (NKECS/World/NkWorld.h:167) alloue les entités, range leurs composants par archétype, exécute les requêtes, porte le bus d'événements de gameplay et les opérations différées. C'est le conteneur de tout ce qui existe dans une scène, et c'est le sens que donnent au mot « World » les moteurs à entités (EnTT, Bevy, Flecs). Il mérite le nom : c'est bien « le monde », celui dont les autres parlent ; son commentaire le dit (« NkWorld ne crée pas de NkGameObject... Ces abstractions sont fournies par Nkentseu qui enveloppe NkWorld »).
+
+Le renommage le moins cher :
+Fichiers qui citent le mot NkWorld (grep -rlw NkWorld sur tout le dépôt, en-têtes, .cpp et .inl : 28 fichiers), classés par l'espace de noms ou le module qu'ils incluent :
+- collision::NkWorld : 7 fichiers, 46 lignes — NkCollisionWorld.h (2), NkCollisionWorld.cpp (16), NKCollision.h (1), NkColRay2D.h (1), tests/test_collision.cpp (21), NKPhysics/NkPhysicsWorld.h (2), NKPhysics/tests/test_rigides2d.cpp (3).
+- ecs::NkWorld : 21 fichiers, 174 lignes — NkWorld.h (59), NkSystem.h (15), NkEntitySerialization.h (11), NkHierarchy.h (11), NkWorld.cpp (8), NkQuery.h (7), NkScheduler.h (6), NKECS.h (5), exemples, tests, et trois applications (NkEauEcsProbe, NkFluidEcsProbe, Sandbox/Hello3DApp.h).
+Le moins cher est de renommer celui de la collision en NkCollisionWorld : 7 fichiers et 46 lignes à changer (dont 24 dans des tests), aucun dans une application, contre 21 fichiers et 174 lignes pour l'autre. Et c'est aussi le bon choix sur le fond : le fichier s'appelle déjà NkCollisionWorld.h, et le nom qui reste, ecs::NkWorld, est celui qui le mérite. Le compte de lignes est un plafond (une ligne qui cite deux fois le nom compte une fois) ; un renommage outillé (clang-rename, ou recherche-remplacement limitée aux 7 fichiers et au mot entier) le fait en une passe, suivi d'une construction de NKCollision, NKPhysics et de leurs tests.
+
+Programme : ambiguite.cpp. Deux espaces de noms, collision et ecs, définissent chacun une classe NkWorld ; un « using namespace » des deux rend l'usage non qualifié ambigu. Avec la ligne « NkWorld monde; » active, clang 23.1.4 (llvm-mingw, cible Windows) refuse :
+ambiguite.cpp:37:5: error: reference to 'NkWorld' is ambiguous
+   37 |     NkWorld monde;
+      |     ^
+ambiguite.cpp:9:11: note: candidate found by name lookup is 'collision::NkWorld'
+ambiguite.cpp:21:11: note: candidate found by name lookup is 'ecs::NkWorld'
+1 error generated.
+La ligne est laissée en commentaire, et la correction qualifie : collision::NkWorld physique; ecs::NkWorld scene;. Construit et lancé sous Windows 11 : « collision::NkWorld : 2 corps » puis « ecs::NkWorld : 1 entite ».

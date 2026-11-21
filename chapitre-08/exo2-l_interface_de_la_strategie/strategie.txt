@@ -1,0 +1,21 @@
+Virtuelles pures :
+30 méthodes virtuelles pures dans la classe NkIRenderer2D (NKCanvas/Renderer/Core/NkIRenderer2D.h).
+Méthode 1 : grep -n "= 0;" sur le fichier donne 32 lignes. J'en retire deux qui ne comptent pas : la ligne 40 est la virtuelle pure de l'AUTRE classe du fichier, NkIDrawable2D ; la ligne 253 est « for (int i = 0; i < 4; ++i) » dans un corps. Il reste 30.
+Méthode 2 (vérification) : un petit script lit le texte à partir de « class NkIRenderer2D { », retire les commentaires, prend chaque déclaration qui commence par virtual jusqu'à son « ; » ou son « { », et classe : 30 se terminent par « = 0; » (Initialize, Shutdown, IsValid, Begin, End, IsInFrame, Flush, Clear, SetView, GetView, GetDefaultView, SetViewport, GetViewport, SetBlendMode, GetBlendMode, Draw(NkSprite), Draw(NkText), DrawPoint, DrawLine, DrawRect, DrawFilledRect, DrawCircle, DrawFilledCircle, DrawTriangle, DrawFilledTriangle, DrawVertices, GetStats, ResetStats, MapPixelToCoords, MapCoordsToPixel). Le même script compte à part 15 virtuelles avec un corps (ResetView, IsViewCustom, SetResizePolicy, GetResizePolicy, GetDesignSize, OnResize, SetClip, PopClip, ResetClip, HasClip, GetClip, Draw(NkIDrawable2D), DrawRectOutline, DrawCircleOutline, DrawTexturedRect), plus le destructeur virtuel « = default ». Les deux comptes donnent 30.
+
+Dorsaux :
+Six classes de dorsaux, dans cinq dossiers de NKCanvas/Backend/ (ls NKCanvas/Backend/*/*Renderer2D.h) : DirectX/NkDX11Renderer2D.h, DirectX/NkDX12Renderer2D.h, Metal/NkMetalRenderer2D.h, OpenGL/NkOpenGLRenderer2D.h, Software/NkSoftwareRenderer2D.h, Vulkan/NkVulkanRenderer2D.h.
+Le commentaire de NkRenderer2D.h dit « les 5 backends » : il date d'avant Metal. J'ai compté les fichiers.
+
+Ce que chacun écrit :
+Aucun n'hérite directement de NkIRenderer2D : tous héritent de NkBatchRenderer2D (NKCanvas/Renderer/Batch/NkBatchRenderer2D.h:31), qui redéfinit déjà 26 des 30 virtuelles pures (39 lignes override) et en ajoute 2 nouvelles (SubmitBatches l. 167, UploadProjection l. 170). Restent à écrire, pour tout dorsal : Initialize, Shutdown, IsValid, Clear, SubmitBatches, UploadProjection = 6 obligatoires ; et 3 crochets facultatifs (BeginBackend, EndBackend, ApplyScissor).
+Comptes (lignes override de l'en-tête, destructeur exclu) :
+- NkDX11Renderer2D : mère NkBatchRenderer2D, 8 redéfinitions (les 6 obligatoires + BeginBackend, EndBackend).
+- NkDX12Renderer2D : mère NkBatchRenderer2D, 8 (idem).
+- NkMetalRenderer2D : mère NkBatchRenderer2D, 9 (+ ApplyScissor) ; tout le fichier est sous #if macOS/iOS.
+- NkOpenGLRenderer2D : mère NkBatchRenderer2D, 9 (+ ApplyScissor).
+- NkSoftwareRenderer2D : mère NkBatchRenderer2D, 9 (+ Draw(const NkSprite&), qu'il refait lui-même ; pas d'ApplyScissor).
+- NkVulkanRenderer2D : mère NkBatchRenderer2D. L'en-tête porte DEUX versions séparées par #if NKENTSEU_HAS_VULKAN_HEADERS : la vraie (l. 24) redéfinit 8 méthodes ; la version de secours (l. 156), quand les en-têtes Vulkan manquent, redéfinit les 6 obligatoires avec des corps vides et Initialize qui rend false.
+
+Le coût :
+Le chiffre 30 ne dit pas le coût. Un dorsal de plus ne réécrit pas 30 méthodes : la classe intermédiaire NkBatchRenderer2D en absorbe 26 (tout le dessin de formes, les vues, la découpe, les statistiques) et transforme le travail en lots de sommets. D'après les comptes, un nouveau dorsal coûte 6 méthodes obligatoires — créer son état GPU, le libérer, dire s'il est valide, effacer, envoyer un lot, poser la projection — plus 0 à 3 crochets ; les six dorsaux existants en écrivent entre 6 et 9. Le vrai prix est ailleurs : il faut écrire aussi le contexte graphique du même dorsal (NkIGraphicsContext), l'ajouter à la fabrique (NkRenderer2DFactory, dans le .cpp) et à l'énumération NkGraphicsApi avec ses switch. Et la stratégie impose ses choix : un dorsal ne peut faire mieux que ce que le lot de triangles exprime, sauf à refaire une méthode comme le dorsal logiciel refait Draw(NkSprite).

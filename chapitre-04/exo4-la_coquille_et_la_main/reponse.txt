@@ -1,0 +1,8 @@
+Ce que la coquille me donne :
+25 lignes utiles de moins (33 contre 58). Je n'écris ni la création de la fenêtre et de la cible, ni les deux vérifications, ni la boucle, ni le dépilage des événements, ni la fermeture. Le plafond du pas de temps (maxDeltaTime = 0,1 s) et le cycle de vie mobile sont faits pour moi. Elle donne aussi la capture : à la trame 180 (3 s à 60 images par seconde), le carré de coquille.cpp est à x = 300, soit bien 100 pixels par seconde ; alamain.cpp applique la même formule x += 100 * dt.
+
+Ce qu'elle me prend :
+Elle décide à ma place : le dorsal graphique (NK_GFX_API_NONE = « choisis pour moi »), l'ordre de la boucle, le plafond de dt, le moment où la configuration est lue (une seule fois, dans le constructeur), le fait que c'est ELLE qui dépile les événements (je ne dois plus appeler PollEvent moi-même, « un second dépileur ne verrait rien »), et une seule fenêtre.
+
+Quand je choisirais la main :
+Pour deux fenêtres ou plus, pour imposer un dorsal précis ou une boucle à pas fixe, pour un outil qui doit tourner sans fenêtre, ou pour intégrer NKCanvas dans une boucle existante (éditeur, autre moteur). Pong, Gemcrush et Songoo sont écrits ainsi.

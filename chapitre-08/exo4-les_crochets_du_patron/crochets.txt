@@ -1,0 +1,79 @@
+Les crochets :
+Douze crochets virtuels dans include/NKCanvas/App/NkCanvasApp.h (kit Canvas du 22 octobre 2026), avec ce que leur commentaire promet :
+- l. 249  OnCommandLine(const NkVector<NkString>&) -> NkOptional<int> : appelé AVANT toute fenêtre ; rendre une valeur arrête le programme avec ce code.
+- l. 255  OnInit() -> bool : fenêtre et cible existent ; false = abandon.
+- l. 259  OnUpdate(float32 deltaTime) : pas de commentaire ; la mise à jour de chaque image.
+- l. 262  OnRender(NkRenderWindow&) : pas de commentaire ; le dessin de chaque image.
+- l. 265  OnShutdown() : pas de commentaire ; l'arrêt.
+- l. 270  OnEvent(const NkEvent&) -> bool : le flux brut ; true = consommé, la chaîne s'arrête.
+- l. 277  OnPointer(const NkPointer&) -> bool : geste unifié souris + doigt, dérivé de OnEvent.
+- l. 282  OnKeyPress(const NkKeyPressEvent&) -> bool : pas de commentaire propre ; dérivé de OnEvent (en-tête de fichier).
+- l. 291  OnLayout(const NkLayoutInfo&) : taille, zone sûre, densité ont changé ; appelé AU MOINS une fois avant la première trame.
+- l. 314  OnCloseRequested() -> bool : demande de fermeture (croix, Alt+F4) ; false refuse ; défaut true.
+- l. 321  OnPause() : l'application part en arrière-plan ou perd le focus ; c'est ici qu'on coupe le son.
+- l. 323  OnResume() : le retour.
+(Le destructeur virtuel, l. 182, n'est pas un crochet.)
+crochets.cpp redéfinit les douze ; chacun écrit « numéro, nom, image en cours, Time() » dans crochets-Debug.txt ou crochets-Release.txt ; OnUpdate et OnRender ne s'écrivent que pour les trois premières images, OnEvent pour les douze premiers événements ; Quit() à la fin de l'image 5.
+
+L'ordre mesuré :
+Windows 11, kit Canvas du 22 octobre 2026, dorsal DirectX 11, exécutable Debug lancé seul (journal crochets-Debug.txt, recopié tel quel) :
+  1  OnCommandLine    image 0  Time() 0.0000  (1 arguments)
+  2  OnLayout         image 0  Time() 0.0000  960x540
+  3  OnInit           image 0  Time() 0.0000
+  4  OnEvent          image 0  Time() 0.0000  NK_WINDOW_CREATE
+  5  OnEvent          image 0  Time() 0.0000  NK_WINDOW_FOCUS_GAINED
+  6  OnEvent          image 0  Time() 0.0000  NK_WINDOW_FOCUS_GAINED
+  7  OnEvent          image 0  Time() 0.0000  NK_WINDOW_SHOWN
+  8  OnEvent          image 0  Time() 0.0000  NK_WINDOW_RESTORE
+  9  OnEvent          image 0  Time() 0.0000  NK_WINDOW_MOVE
+ 10  OnEvent          image 0  Time() 0.0000  NK_WINDOW_PAINT
+ 11  OnEvent          image 0  Time() 0.0000  NK_WINDOW_RESIZE
+ 12  OnEvent          image 0  Time() 0.0000  NK_WINDOW_MOVE
+ 13  OnEvent          image 0  Time() 0.0000  NK_MOUSE_ENTER
+ 14  OnEvent          image 0  Time() 0.0000  NK_MOUSE_MOVE
+ 15  OnPointer        image 0  Time() 0.0000
+ 16  OnUpdate         image 0  Time() 0.0000  dt=0.0000
+ 17  OnRender         image 0  Time() 0.0000
+ 18  OnUpdate         image 1  Time() 0.0221  dt=0.0221
+ 19  OnRender         image 1  Time() 0.0221
+ 20  OnUpdate         image 2  Time() 0.0393  dt=0.0172
+ 21  OnRender         image 2  Time() 0.0393
+ 22  Quit() demande   image 5  Time() 0.0743
+ 23  OnShutdown       image 5  Time() 0.0743
+ 24  OnPause          image 5  Time() 0.0743
+ 25  ~MonJeu (destructeur, pas un crochet) image 5  Time() 0.0743
+
+Les surprises :
+1. OnLayout (n° 2) arrive AVANT OnInit (n° 3). On aurait supposé l'ordre « j'initialise, puis on me donne ma taille ». C'est l'inverse : la coquille calcule la mise en page dès que la fenêtre existe, avant de rendre la main à OnInit. Le commentaire promettait « au moins une fois avant la première trame », pas « après OnInit » : du code qui, dans OnLayout, utilise une ressource créée dans OnInit, la trouverait vide.
+2. OnPause (n° 24) arrive APRÈS OnShutdown (n° 23). On aurait supposé que pause et reprise n'existent qu'entre OnInit et OnShutdown. Ici, la fenêtre détruite perd le focus, et la coquille appelle OnPause sur une application déjà arrêtée : un OnPause qui coupe le son ou sauvegarde touche des objets que OnShutdown vient de libérer.
+3. OnPointer (n° 15) et un NK_MOUSE_MOVE (n° 14) sans que personne ait touché à la souris, et deux NK_WINDOW_FOCUS_GAINED de suite (n° 5 et 6). On aurait supposé qu'un programme « sans toucher à la fenêtre » ne reçoit aucune entrée. Mais la fenêtre s'ouvre sous le curseur, qui est déjà là : Windows envoie une entrée de souris et un mouvement, que la coquille dérive en OnPointer. Et aucun OnKeyPress, OnCloseRequested ni OnResume : rien ne les a déclenchés (pas de touche, Quit() au lieu de la croix, pas de retour de pause) — ils ne sont pas cassés.
+Autre constat : OnCommandLine reçoit 1 argument (le chemin de l'exécutable) ; et toute la mise en route (n° 1 à 17) se fait à Time() = 0 : le temps ne part qu'à la première image.
+
+Debug et Release :
+Release, lancé seul juste après (crochets-Release.txt) :
+  1  OnCommandLine    image 0  Time() 0.0000  (1 arguments)
+  2  OnLayout         image 0  Time() 0.0000  960x540
+  3  OnInit           image 0  Time() 0.0000
+  4  OnEvent          image 0  Time() 0.0000  NK_WINDOW_CREATE
+  5  OnEvent          image 0  Time() 0.0000  NK_WINDOW_FOCUS_GAINED
+  6  OnEvent          image 0  Time() 0.0000  NK_WINDOW_FOCUS_GAINED
+  7  OnEvent          image 0  Time() 0.0000  NK_WINDOW_SHOWN
+  8  OnEvent          image 0  Time() 0.0000  NK_WINDOW_RESTORE
+  9  OnEvent          image 0  Time() 0.0000  NK_WINDOW_MOVE
+ 10  OnEvent          image 0  Time() 0.0000  NK_WINDOW_PAINT
+ 11  OnEvent          image 0  Time() 0.0000  NK_WINDOW_RESIZE
+ 12  OnEvent          image 0  Time() 0.0000  NK_WINDOW_MOVE
+ 13  OnEvent          image 0  Time() 0.0000  NK_MOUSE_ENTER
+ 14  OnEvent          image 0  Time() 0.0000  NK_MOUSE_MOVE
+ 15  OnPointer        image 0  Time() 0.0000
+ 16  OnUpdate         image 0  Time() 0.0000  dt=0.0000
+ 17  OnRender         image 0  Time() 0.0000
+ 18  OnUpdate         image 1  Time() 0.0180  dt=0.0180
+ 19  OnRender         image 1  Time() 0.0180
+ 20  OnUpdate         image 2  Time() 0.0352  dt=0.0171
+ 21  OnRender         image 2  Time() 0.0352
+ 22  Quit() demande   image 5  Time() 0.0677
+ 23  OnShutdown       image 5  Time() 0.0677
+ 24  OnPause          image 5  Time() 0.0677
+ 25  ~MonJeu (destructeur, pas un crochet) image 5  Time() 0.0677
+L'ORDRE est identique, crochet pour crochet : les 25 lignes, les mêmes douze événements dans le même ordre. Seuls les temps changent : image 1 à 22,1 ms en Debug contre 18,0 ms en Release, Quit() à 74,3 ms contre 67,7 ms. Le patron de méthode fixe l'ordre ; la configuration ne change que la vitesse. La deuxième image dure environ 17 ms dans les deux cas : c'est la cadence de 60 images par seconde, pas le code, qui la décide.

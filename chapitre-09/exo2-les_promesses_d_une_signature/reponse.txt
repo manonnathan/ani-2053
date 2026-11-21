@@ -1,0 +1,24 @@
+Fichiers lus : Applications/NkRef/src/NkRef/NkRefView.h et NkRefBoard.h, dépôt Rihen-Universe/Nkentseu, commit f2a8a57 (14/11/2026). Signes comptés : un paramètre const T& (1 chacun), le const final, static, noexcept. Un paramètre par valeur ne compte pas.
+- PixelToWorld (NkRefView.h:33) : const NkVec2f &pixel, const NkVec2f &viewport, const final = 3. Corps l. 34-35 : il lit center, zoom, pixel et viewport et rend un NkVec2f neuf ; aucune affectation. Tenu.
+- GridSpacing (NkRefView.h:76) : float32 minPixels par valeur (0), const final = 1. Corps l. 77-82 : seule la variable locale s change ; zoom est seulement lu. Tenu.
+- ZoomAtPixel (NkRefView.h:54) : const NkVec2f &pixel, const NkVec2f &viewport = 2 (float32 factor par valeur ; pas de const final, et c'est juste : la méthode change zoom et center). Corps l. 55-63 : pixel et viewport ne sont que lus, et transmis à PixelToWorld, qui les prend aussi par référence const. Tenu.
+- HitTest (NkRefBoard.h:111) : const NkVec2f &worldPoint, const final = 2. Corps l. 112-116 : il lit items[(usize)i] par l'opérateur const de NkVector et appelle Contains, statique ; rien n'est écrit. Tenu.
+- Contains (NkRefBoard.h:90) : static, const NkRefItem &it, const NkVec2f &worldPoint = 3 (pas de const final : une méthode static ne touche à aucun objet). Corps l. 91-93 : il appelle WorldToLocal et HalfSize, toutes deux static et à paramètres const&, et compare. Tenu.
+
+La promesse la plus forte :
+Celle de Contains (NkRefBoard.h:90) : static + const NkRefItem& + const NkVec2f&. Sans lire une ligne du corps, on sait qu'elle ne peut toucher ni à la planche (static : pas de this), ni à l'image qu'on lui passe, ni au point. Elle ne peut que calculer une réponse : c'est une fonction pure, testable sans planche, et appelable de partout sans crainte. PixelToWorld promet autant de signes (3), mais son const ne protège que la vue : elle dépend encore de l'objet sur lequel on l'appelle.
+
+Le message du compilateur :
+Ligne ajoutée dans test_const.cpp, sur la vue déclarée « const nkref::NkRefView vue{}; » : vue.PanByPixels(1.0f, 0.0f);
+Construction : clang++ 23.1.4 (llvm-mingw 20261020, cible x86_64-w64-mingw32), -std=c++17, avec -IApplications/NkRef/src et les en-têtes du kit Canvas du 22 octobre 2026 :
+test_const.cpp:15:5: error: 'this' argument to member function 'PanByPixels' has type 'const nkref::NkRefView', but function is not marked const
+   15 |     vue.PanByPixels(1.0f, 0.0f);
+      |     ^~~
+Applications/NkRef/src/NkRef/NkRefView.h:45:9: note: 'PanByPixels' declared here
+   45 |                         void PanByPixels(float32 dxPixels, float32 dyPixels) {
+      |                              ^
+1 error generated.
+La ligne est remise en commentaire dans le fichier rendu. Sans elle, le programme se construit et, lancé sous Windows, affiche PixelToWorld(100, 50) = (-300.00, -250.00) et GridSpacing(32) = 32.00 (voir resultats sous Windows).
+
+Une promesse que la signature ne dit pas :
+HitTest (NkRefBoard.h:111) rend l'image la plus HAUTE sous le point. Sa signature dit seulement qu'elle prend un point et rend un int32 sans rien modifier ; c'est le corps qui tient la promesse, en parcourant le tableau à rebours, l. 112 : « for (int32 i = (int32)items.Size() - 1; i >= 0; --i) ». L'ordre du tableau est la profondeur (dernier = dessus, dit l'en-tête du fichier, l. 10-11). Écrite à l'endroit, la même signature compilerait, et rendrait l'image du dessous. Autre promesse que seule la lecture du corps révèle : ZoomAtPixel garde fixe le point du monde sous le curseur et borne le zoom entre kZoomMin et kZoomMax (l. 55-63) ; rien dans « void ZoomAtPixel(float32, const NkVec2f&, const NkVec2f&) » ne le dit.

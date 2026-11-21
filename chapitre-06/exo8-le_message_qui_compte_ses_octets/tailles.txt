@@ -1,0 +1,11 @@
+Types complets : 18 octets (144 bits)
+
+Quantifié : 8 octets (60 bits)
+
+Écart maximal :
+vivant 0 ; numéro 0 ; x 0,004 m ; y 0,003 m ; angle 0,2 degré ; santé 0. En types complets, tous les écarts sont nuls. (Valeurs envoyées : vivant, 42, x 123,456, y -321,987, angle 271,3, santé 87.)
+
+Ce que le joueur verrait :
+Rien. Quatre millimètres de position et deux dixièmes de degré d'orientation sont sous ce que l'œil distingue sur un personnage, et la prochaine mise à jour arrive dans 16 ms. La position au centimètre demande 17 bits par axe (100 001 pas), l'angle au demi-degré 10 bits, la santé 7 bits, l'état 1 bit : 60 bits au lieu de 144, 2,25 fois moins de données pour la même chose à l'écran.
+
+Paquets envoyés par le réseau (127.0.0.1, même machine) et relus par un NkBitReader avec les mêmes bornes, précisions et ordre. Un octet d'aiguillage précède chaque paquet sur le fil (19 et 9 octets reçus).

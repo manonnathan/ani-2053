@@ -1,0 +1,17 @@
+Coupure : 15643 15785 16032
+
+Fermeture propre : 14788
+
+Raison :
+« Disconnected » dans les deux cas. Le texte est fixé par NkConnectionManager::UpdateConnections (NkConnection.cpp : onPeerDisconnected(peer, "Disconnected")) : la vraie cause (délai d'inactivité) est perdue en route.
+
+Table :
+avant la coupure : [serveur] table (connexion) : 6310765805231689233
+après la coupure : [serveur] table (deconnexion) : vide
+
+Fil :
+onPeerDisconnected est appelé par le fil réseau du moteur, pas par ma boucle : NetThreadLoop → UpdateConnections → rappel. Trouvé en lisant cette chaîne d'appels dans NkConnection.cpp (le kit n'en a que l'en-tête). Conséquence : la table est partagée entre deux fils (le rappel écrit, la boucle met à jour l'heure du dernier message), donc chaque accès est protégé par un NkMutex, pris par un verrou de portée. Autre constat : le rappel arrive DEUX fois par déconnexion (la ligne « table (deconnexion) : vide » sort deux fois) ; la table doit donc accepter qu'on retire un joueur déjà parti.
+
+Pourquoi ~15 s : le délai d'inactivité (kNkTimeoutMs = 10 000) n'est vérifié qu'une fois toutes les 10 s, pas en continu : selon le moment de la coupure par rapport au contrôle, la détection tombe entre 10 et 20 s après le dernier message. Et la fermeture propre ne change rien : NkConnectionManager::Shutdown arrête d'abord le fil réseau (Join) PUIS appelle DisconnectAll ; l'avis de départ n'est jamais émis, et le serveur l'apprend comme une coupure, par le silence.
+
+Une seule machine (Windows 11, 127.0.0.1). Client tué par taskkill /F (équivalent de « Fin de tâche ») trois fois, puis un client qui appelle Shutdown() après 3 s.

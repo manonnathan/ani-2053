@@ -1,0 +1,15 @@
+Recherche :
+Dans le dossier include/ du kit Canvas du 22 octobre 2026 :
+  grep -rn "NkOpenGLRenderer2D" include/
+Résultat : 12 lignes dans 5 fichiers (grep -rln ... | wc -l donne 5). Trois lignes sont dans le dossier du dorsal lui-même (NKCanvas/Backend/OpenGL/NkOpenGLRenderer2D.h:3, :13, :15, :17 — quatre lignes, la déclaration de la classe, son constructeur et son destructeur). Les 8 autres sont dans 4 fichiers hors de son dossier.
+
+Hors de son dossier :
+- NKGui/Core/NkGuiDrawListRaster.h:35 — commentaire. « //      OpenGL (`NkOpenGLRenderer2D::SetBlendMode`) : Screen ONE / » : le rastériseur logiciel de NKGui cite le dorsal OpenGL comme référence des facteurs de mélange qu'il imite.
+- NKCanvas/Renderer/Core/NkIRenderer2D.h:15 — commentaire. « //   Backends/OpenGL/NkOpenGLRenderer2D » : la liste des mises en œuvre en tête de l'interface.
+- NKCanvas/Renderer/Core/NkRenderer2D.h:19 — commentaire. « //   NkSoftwareRenderer2D / NkOpenGLRenderer2D / NkVulkanRenderer2D / NkDX11Renderer2D / NkDX12Renderer2D » : le schéma de la façade.
+- NKCanvas/Renderer/Resources/NkTextureBackend.h:22, :24, :25, :26, :27, :28 — commentaire, six lignes. Un exemple d'enregistrement : « //       &NkOpenGLRenderer2D::CreateGLTexture, » etc., en fin de NkOpenGLRenderer2D::Initialize.
+Aucune de ces lignes n'est du code : ce sont huit mentions en commentaire, dans quatre fichiers.
+
+Conclusion :
+Hors de son dossier, le nom NkOpenGLRenderer2D n'apparaît dans aucune ligne de code du kit. NkRenderer2DFactory.h ne nomme aucun dorsal : il déclare Create(NkIGraphicsContext*), Destroy, CreateUnique et IsApiSupported(NkGraphicsApi), et rend un NkIRenderer2D*. Le choix de la classe concrète est donc en un seul endroit, le .cpp de la fabrique, compilé dans NKCanvas.lib : la fabrique fait son travail, le choix ne s'est pas répandu.
+Deux nuances. La recherche dans les en-têtes ne voit pas les .cpp de la bibliothèque : je ne peux pas prouver qu'aucun autre .cpp ne nomme la classe (NkTextureBackend.h laisse penser que l'enregistrement des textures se fait depuis Initialize du dorsal lui-même, donc dans son propre dossier). Et les commentaires, eux, connaissent les dorsaux : ils ne cassent rien à la compilation, mais ils vieillissent — NkRenderer2D.h:19 en liste cinq, alors que le kit en a six avec Metal. La fabrique ajoute aussi Destroy : le dorsal est alloué par l'allocateur de NKMemory, et seul celui qui a alloué sait libérer.

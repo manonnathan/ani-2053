@@ -1,0 +1,14 @@
+Constat :
+Le programme se fige à chaque lancement : il n'affiche rien, ne plante pas, n'écrit aucune erreur et ne rend jamais la main. Trois secondes après le lancement, le gestionnaire des tâches le montre toujours vivant (etreinte_fige.exe, 5 240 Ko) ; il a fallu le tuer.
+
+Pause :
+Numéros des lignes de la version figée, gardée en commentaire en tête de etreinte.cpp, vus au débogueur programme en pause :
+- fil a : ligne 11, NkScopedLock<NkMutex> v2(m2) — il tient m1 et attend m2 (pile : NkMutex::Lock sur m2) ;
+- fil b : ligne 17, NkScopedLock<NkMutex> v2(m1) — il tient m2 et attend m1 (NkMutex::Lock sur m1) ;
+- fil principal : ligne 20, a.Join() — il attend la fin de a (NkThread::Join).
+
+Correction :
+Un ordre unique de prise : b prend lui aussi m1 avant m2. Les deux verrous et les deux attentes de 100 ms sont gardés. Trois lancements : « a : les deux verrous », « b : les deux verrous », « fin : aucun blocage », trois fois.
+
+Règle :
+Dans tout le programme, les verrous se prennent toujours dans le même ordre global (ici m1 avant m2 ; en pratique, un rang par verrou, et on ne prend jamais un verrou de rang inférieur à un verrou déjà tenu).

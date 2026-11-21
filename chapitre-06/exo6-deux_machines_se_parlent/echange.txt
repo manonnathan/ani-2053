@@ -1,0 +1,14 @@
+Serveur :
+[serveur] en ecoute sur le port 7777
+[serveur] pair connecte : 16801250259127825766
+[serveur] message de 16801250259127825766 : Bonjour depuis le client
+
+Client :
+[client] pair connecte : 1
+[client] message envoye a 1 : Bonjour depuis le client (OK)
+
+Pair :
+Côté serveur, le pair vu est 16801250259127825766 : l'identifiant que le serveur a attribué au client à la connexion, un nombre de 64 bits propre à la session ; c'est aussi le champ from du message reçu. Côté client, le pair vu est 1 : la valeur réservée au serveur (NkPeerId : « value = 1, convention serveur »). Chacun désigne l'AUTRE bout de la connexion, pas lui-même.
+
+Machines :
+Une seule machine (Windows 11, DESKTOP-I2VSOC8) : serveur et client lancés sur le même poste, adresse 127.0.0.1, port 7777.

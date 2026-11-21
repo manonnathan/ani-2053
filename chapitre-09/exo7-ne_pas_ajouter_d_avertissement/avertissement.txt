@@ -1,0 +1,1 @@
+/root/nkmain/Kernel/Runtime/NKCanvas/src/NKCanvas/Renderer/Targets/NkRenderTarget.cpp:18:8: warning: unused variable 'variableInutilisee' [-Wunused-variable]

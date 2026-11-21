@@ -1,0 +1,8 @@
+Ce que la coquille fait a ma place :
+Elle crée la fenêtre (NkWindow) et la cible de rendu (NkRenderWindow), choisit le dorsal graphique (ligne de commande, environnement, puis défaut de la plateforme), écrit la boucle (temps plafonné par maxDeltaTime, dépilage des événements, OnUpdate, Clear avec clearColor, OnRender, Display), gère la fermeture et le cycle de vie mobile (pause, reprise, surface détruite). Elle offre même la capture : fenetre.png a été écrite par l'option --capture de la coquille, et son pixel central vaut bien 18 18 24. Mon fichier ne contient que trois réglages et un appel à Run.
+
+Ce qui se passe si je configure dans OnInit :
+Rien ne casse et rien ne s'affiche comme voulu : la fenêtre a déjà été créée avec les valeurs par défaut (« Application NKCanvas », 960 x 540). Le titre, la taille et la couleur demandés sont ignorés en silence ; seul le journal le signale (NkCanvasApp.h : « Modifier un champ apres coup n'a aucun effet — et le journal le dit »). Le symptôme est une fenêtre au mauvais titre et à la mauvaise taille, sans aucune erreur.
+
+Ce qui se passe sans NKMain.h :
+Tout compile, puis l'édition de liens échoue sur un symbole que je n'ai jamais écrit : « undefined reference to WinMain ». C'est NKMain.h qui fournit le vrai point d'entrée de Windows (EntryPoints/NkWindowsDesktop.h définit WinMain, qui appelle nkmain). Le symptôme : une erreur de liens qui ne nomme aucun de mes fichiers.

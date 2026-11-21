@@ -1,0 +1,10 @@
+Ce que fait la barre sans ResetView :
+Elle défile avec le monde. Dans le journal, barre_x reste à 0 avec l'appel, et vaut -60, -121, -181, -241, -301 sans lui : elle part vers la gauche exactement comme le centre de la vue avance (barre_x = 400 - centre_x). Sur sans.png, il ne reste que la moitié droite de la barre, à gauche de l'écran, et le texte est sorti de l'écran.
+
+Pourquoi :
+Une vue n'est pas un objet qu'on dessine : c'est un ÉTAT du renderer (NkRenderTarget::SetView). Une fois posée, elle s'applique à tout ce qui suit, interface comprise, tant qu'on ne la change pas. ResetView remet la vue par défaut (NkRenderTarget.h : SetView(GetDefaultView())).
+
+Ou placer l'appel :
+Juste après le dessin du monde et juste avant le premier élément d'interface, dans chaque OnRender. Ordre : SetView(vue du monde) → dessin du monde → ResetView() → interface.
+
+Captures : écrites par l'option --capture de NkCanvasApp à la trame 180, avec le dorsal logiciel. Avec le dorsal DX11, la barre et les carrés sont identiques mais le texte sort en rectangles blancs.
